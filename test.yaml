@@ -1,0 +1,59 @@
+kind: StatefulSet
+apiVersion: apps/v1
+metadata:
+  name: controller-manager
+  namespace: system
+  labels:
+    control-plane: controller-manager
+    controller-tools.k8s.io: "1.0"
+spec:
+  selector:
+    matchLabels:
+      control-plane: controller-manager
+      controller-tools.k8s.io: "1.0"
+  serviceName: controller-manager-service
+  template:
+    metadata:
+      labels:
+        control-plane: controller-manager
+        controller-tools.k8s.io: "1.0"
+    spec:
+      containers:
+        - name: manager
+          command:
+            - /bin/qperf
+          image: kubespheredev/controller-manager:latest
+          imagePullPolicy: Always
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: SECRET_NAME
+              value: $(WEBHOOK_SECRET_NAME)
+          ports:
+            - containerPort: 9876
+              name: webhook-server
+              protocol: TCP
+            - containerPort: 30000
+              name: dlv
+              protocol: TCP
+          volumeMounts:
+            - mountPath: /tmp/cert
+              name: cert
+              readOnly: true
+            - mountPath: /opt
+              name: kubesphere
+      terminationGracePeriodSeconds: 10
+      volumes:
+        - name: cert
+          secret:
+            defaultMode: 420
+            secretName: webhook-server-secret
+        - name: kubesphere
+          nfs:
+            path: /root/kubesphere
+            server: 192.168.0.5
+        - name: hostkubesphere
+          hostPath:
+            path: /root/test
